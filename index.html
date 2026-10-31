@@ -190,17 +190,21 @@
         },
       },
       // istanbul's coverage-summary.json: {total: {...}, "/abs/path/file.js": {statements: {total, covered}, ...}}.
-      // Its HTML pages sit under the last folder every file shares, so that folder's parent is cut from each path.
+      // Its HTML report cuts the folder every file shares and groups files by folder. With more than one folder and
+      // files directly in the shared one, it names the root after that folder and puts every page under it.
       istanbul: {
         summary: 'json',
         rows(report, data) {
           const files = Object.keys(data).filter((key) => key !== 'total');
-          const common = files.map((file) => segments(file).slice(0, -1))
-            .reduce((shared, dir) => shared.filter((part, i) => dir[i] === part));
-          return files.map((file) => {
+          const dirs = files.map((file) => segments(file).slice(0, -1));
+          const common = dirs.length ? dirs.reduce((shared, dir) => shared.filter((part, i) => dir[i] === part)) : [];
+          const relative = files.map((file) => segments(file).slice(common.length));
+          const folders = new Set(relative.map((parts) => parts.slice(0, -1).join('/')));
+          const root = folders.size > 1 && folders.has('') && common.length ? `${common[common.length - 1]}/` : '';
+          return files.map((file, i) => {
             const metrics = data[file];
             const metric = (name) => ({ total: metrics[name].total, missed: metrics[name].total - metrics[name].covered });
-            const path = segments(file).slice(Math.max(common.length - 1, 0)).join('/');
+            const path = root + relative[i].join('/');
             return makeRow(report, path, `${path}.html`, metric('statements'), metric('branches'), metric('functions'));
           });
         },
