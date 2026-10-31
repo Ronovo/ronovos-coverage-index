@@ -30,9 +30,16 @@ project, not in this repository; the examples below keep it at the project root 
 ```
 
 - `path` is the report's folder beside the page, `summary` the file with its per-file numbers, `format` which parser
-  reads it (`coverage.py` or `istanbul`), and `functions` the optional `functions.json` for formats whose summary
-  has no function counts. istanbul's summary has them, so its report needs no `functions` entry.
+  reads it, and `functions` the optional `functions.json` for formats whose summary has no function counts.
+  istanbul's summary has them, so its report needs no `functions` entry.
 - A project with one test suite lists one report. Another format is one more entry in the page's `formats` table.
+
+| `format` | Written by | `summary` | Pages |
+|---|---|---|---|
+| `coverage.py` | coverage.py's `html` report | `status.json` | coverage.py's own, plus `functions.json` from `tools/functions.py` |
+| `istanbul` | Vitest, Jest, c8 and nyc with the `html` and `json-summary` reporters | `coverage-summary.json` | istanbul's own |
+| `reportgenerator` | ReportGenerator's `Html` report over coverlet's Cobertura (C#) | `main.js` | one page per class, so the table lists classes |
+| `jacoco` | JaCoCo's `xml` and `html` reports (Java) | `jacocoTestReport.xml` | JaCoCo's own |
 
 ## Setting up a project
 
@@ -89,6 +96,42 @@ coverage: {
 
 ```sh
 cat coverage-index/istanbul.css >> coverage/js/base.css
+```
+
+c8 writes the same report: put `"html"` and `"json-summary"` in its `reporter` list and append `istanbul.css` the
+same way.
+
+### coverlet and ReportGenerator
+
+```sh
+dotnet test Tests/MyApp.Tests.csproj --collect:"XPlat Code Coverage" --results-directory /tmp/results
+reportgenerator -reports:"/tmp/results/**/coverage.cobertura.xml" -targetdir:coverage/dotnet -reporttypes:Html
+```
+
+The `Html` report's `main.js` holds the per-class numbers the page reads, so no other report type is needed.
+
+### JaCoCo
+
+```groovy
+plugins {
+    id 'java'
+    id 'jacoco'
+}
+
+jacocoTestReport {
+    reports {
+        xml.required = true
+        html.required = true
+    }
+}
+test.finalizedBy jacocoTestReport
+```
+
+Gradle writes the pages to `build/reports/jacoco/test/html/` and the summary to
+`build/reports/jacoco/test/jacocoTestReport.xml`. Serve the html folder as the report and copy the xml into it:
+
+```sh
+cp build/reports/jacoco/test/jacocoTestReport.xml build/reports/jacoco/test/html/
 ```
 
 ### Dockerfile

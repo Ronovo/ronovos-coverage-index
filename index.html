@@ -175,28 +175,70 @@
     }
 
     // Each format turns its report's summary file into rows of the same shape, so another format is one more entry.
+    // `summary` says how that file is read: json, text or xml.
     const formats = {
       // coverage.py's status.json: {files: {key: {index: {url, file, nums: {n_statements, n_missing, ...}}}}}
-      'coverage.py'(report, data) {
-        return Object.values(data.files).map(({ index }) => {
-          const n = index.nums;
-          return makeRow(report, segments(index.file).join('/'), index.url,
-            { total: n.n_statements, missed: n.n_missing },
-            { total: n.n_branches, missed: n.n_missing_branches }, null);
-        });
+      'coverage.py': {
+        summary: 'json',
+        rows(report, data) {
+          return Object.values(data.files).map(({ index }) => {
+            const n = index.nums;
+            return makeRow(report, segments(index.file).join('/'), index.url,
+              { total: n.n_statements, missed: n.n_missing },
+              { total: n.n_branches, missed: n.n_missing_branches }, null);
+          });
+        },
       },
       // istanbul's coverage-summary.json: {total: {...}, "/abs/path/file.js": {statements: {total, covered}, ...}}.
       // Its HTML pages sit under the last folder every file shares, so that folder's parent is cut from each path.
-      istanbul(report, data) {
-        const files = Object.keys(data).filter((key) => key !== 'total');
-        const common = files.map((file) => segments(file).slice(0, -1))
-          .reduce((shared, dir) => shared.filter((part, i) => dir[i] === part));
-        return files.map((file) => {
-          const metrics = data[file];
-          const metric = (name) => ({ total: metrics[name].total, missed: metrics[name].total - metrics[name].covered });
-          const path = segments(file).slice(Math.max(common.length - 1, 0)).join('/');
-          return makeRow(report, path, `${path}.html`, metric('statements'), metric('branches'), metric('functions'));
-        });
+      istanbul: {
+        summary: 'json',
+        rows(report, data) {
+          const files = Object.keys(data).filter((key) => key !== 'total');
+          const common = files.map((file) => segments(file).slice(0, -1))
+            .reduce((shared, dir) => shared.filter((part, i) => dir[i] === part));
+          return files.map((file) => {
+            const metrics = data[file];
+            const metric = (name) => ({ total: metrics[name].total, missed: metrics[name].total - metrics[name].covered });
+            const path = segments(file).slice(Math.max(common.length - 1, 0)).join('/');
+            return makeRow(report, path, `${path}.html`, metric('statements'), metric('branches'), metric('functions'));
+          });
+        },
+      },
+      // ReportGenerator's Html report keeps its summary in main.js as `var assemblies = [...]`: one object per class,
+      // not per file, with its page in rp, lines in cl/cal, branches in cb/tb and methods in cm/tm. The array has
+      // trailing commas, so it is read as the JavaScript it is rather than as JSON.
+      reportgenerator: {
+        summary: 'text',
+        rows(report, text) {
+          const match = text.match(/var assemblies = (\[[\s\S]*?\n\]);/);
+          if (!match) throw new Error(`${report.summary} has no assemblies list`);
+          const assemblies = new Function(`return ${match[1]}`)();
+          return assemblies.flatMap((assembly) => assembly.classes.map((cls) => makeRow(report, cls.name, cls.rp,
+            { total: cls.cal, missed: cls.cal - cls.cl }, { total: cls.tb, missed: cls.tb - cls.cb },
+            cls.tm ? { total: cls.tm, missed: cls.tm - cls.cm } : null)));
+        },
+      },
+      // JaCoCo's jacocoTestReport.xml: <package name="a/b"><sourcefile name="X.java"><counter type="LINE" missed covered/>
+      // Its HTML pages sit at <package>/<file>.html with the package in dot form.
+      jacoco: {
+        summary: 'xml',
+        rows(report, doc) {
+          const counter = (source, type) => {
+            const el = source.querySelector(`counter[type="${type}"]`);
+            const missed = el ? Number(el.getAttribute('missed')) : 0;
+            return { total: missed + (el ? Number(el.getAttribute('covered')) : 0), missed };
+          };
+          return [...doc.querySelectorAll('package')].flatMap((pkg) => {
+            const name = pkg.getAttribute('name');
+            return [...pkg.querySelectorAll('sourcefile')].map((source) => {
+              const file = source.getAttribute('name');
+              const methods = counter(source, 'METHOD');
+              return makeRow(report, name ? `${name}/${file}` : file, `${name ? name.replaceAll('/', '.') : 'default'}/${file}.html`,
+                counter(source, 'LINE'), counter(source, 'BRANCH'), methods.total ? methods : null);
+            });
+          });
+        },
       },
     };
 
@@ -304,16 +346,21 @@
       document.getElementById('reports').append(tile);
     }
 
-    async function fetchJson(path) {
+    async function fetchAs(path, kind) {
       const response = await fetch(path);
       if (!response.ok) throw new Error(`${path}: ${response.statusText}`);
-      return response.json();
+      if (kind === 'json') return response.json();
+      const text = await response.text();
+      return kind === 'xml' ? new DOMParser().parseFromString(text, 'application/xml') : text;
     }
+
+    const fetchJson = (path) => fetchAs(path, 'json');
 
     // functions.json: {file: {measured, called}}, for formats whose summary has no function counts. A function counts
     // as covered when something called it, which is what istanbul's function metric means.
     async function loadReport(report) {
-      const reportRows = formats[report.format](report, await fetchJson(report.path + report.summary))
+      const format = formats[report.format];
+      const reportRows = format.rows(report, await fetchAs(report.path + report.summary, format.summary))
         .filter((row) => row.statementsTotal > 0);
       if (report.functions) {
         const counts = await fetchJson(report.path + report.functions);
