@@ -1,0 +1,11 @@
+/* Appended to istanbul's base.css after the report is written, since istanbul has no extra-css setting:
+   GitHub diff colours for covered and uncovered lines, statements and branches. */
+.cline-yes, .high { background: #dafbe1; }
+.cline-no, .low { background: #ffebe9; }
+.cstat-no, .fstat-no { background: #ffcecb; }
+.cbranch-no { background: #fff8c5 !important; }
+.cstat-yes { background: #aceebb; }
+.status-line.high, .high .cover-fill { background: #1a7f37; }
+.high .chart { border-color: #1a7f37; }
+.red.solid, .status-line.low, .low .cover-fill { background: #cf222e; }
+.low .chart { border-color: #cf222e; }

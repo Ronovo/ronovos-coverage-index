@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<!-- The same page works in any repo: it lists the reports named in the reports.json next to it and puts every file
+     they measured in one sortable table. Each report names its summary file and the format that wrote it, and may
+     name a functions.json with per-file function counts when the format's summary has none. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Test coverage</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f3f5f9; --panel: #fff; --text: #1d2330; --muted: #5d6676; --line: #e1e5ec; --accent: #2f6fdd;
+      --ok: #1a7f37; --ok-bg: #dafbe1; --gap: #9a6700; --gap-bg: #fff8c5; --bad: #cf222e;
+      --zebra: #f8fafc; --hover: #eef3fb; --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 8px 24px -12px rgba(16, 24, 40, .18);
+      --hero: linear-gradient(135deg, #16234a 0%, #2f6fdd 55%, #2fb4a0 100%);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0b0f16; --panel: #141a24; --text: #e8ebf0; --muted: #98a2b3; --line: #273243; --accent: #6ea2ff;
+        --ok: #3fb950; --ok-bg: rgba(46, 160, 67, .22); --gap: #d29922; --gap-bg: rgba(187, 128, 9, .22); --bad: #f85149;
+        --zebra: #11161f; --hover: #1a2334; --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 12px 32px -16px rgba(0, 0, 0, .8);
+        --hero: linear-gradient(135deg, #0d1430 0%, #1f4ea8 55%, #1d7f72 100%);
+      }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, sans-serif; }
+    a { color: var(--accent); }
+    .hero { background: var(--hero); color: #fff; padding: 44px 16px 72px; }
+    .hero-inner, main { max-width: 1100px; margin: 0 auto; }
+    .eyebrow { margin: 0 0 6px; font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; opacity: .75; }
+    h1 { margin: 0 0 8px; font-size: 32px; letter-spacing: -.01em; }
+    .hero p { margin: 0; opacity: .9; }
+    .hero a { color: inherit; }
+    .overall { margin-top: 10px !important; font-size: 17px; font-weight: 600; opacity: 1 !important; }
+    main { padding: 0 16px 56px; margin-top: -40px; }
+    .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin-bottom: 22px; }
+    .tile {
+      display: flex; align-items: center; gap: 16px; padding: 18px 20px; border-radius: 14px; background: var(--panel);
+      color: inherit; text-decoration: none; box-shadow: var(--shadow); border: 1px solid transparent;
+      transition: transform .15s ease, border-color .15s ease;
+    }
+    .tile:hover, .tile:focus-visible { transform: translateY(-2px); border-color: var(--accent); }
+    .tile strong { display: block; font-size: 16px; color: var(--accent); }
+    .tile span { display: block; color: var(--muted); font-size: 13px; }
+    .ring { width: 72px; height: 72px; flex: none; }
+    .ring .track { fill: none; stroke: var(--line); stroke-width: 6; }
+    .ring .arc { fill: none; stroke: var(--ok); stroke-width: 6; stroke-linecap: round; }
+    .ring .arc.gap { stroke: var(--gap); }
+    .ring text { font-size: 13px; font-weight: 700; fill: currentColor; text-anchor: middle; dominant-baseline: central; }
+    .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 18px; margin-bottom: 14px; }
+    .search { position: relative; flex: 1 1 240px; }
+    .search svg { position: absolute; left: 12px; top: 50%; width: 16px; height: 16px; transform: translateY(-50%); color: var(--muted); }
+    .search input {
+      width: 100%; padding: 10px 14px 10px 38px; border: 1px solid var(--line); border-radius: 999px;
+      background: var(--panel); color: inherit; font: inherit; box-shadow: var(--shadow);
+    }
+    .search input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .controls label { display: flex; align-items: center; gap: 8px; color: var(--muted); cursor: pointer; }
+    .switch {
+      appearance: none; width: 36px; height: 20px; margin: 0; border-radius: 999px; background: var(--line);
+      position: relative; cursor: pointer; transition: background .15s ease;
+    }
+    .switch::after {
+      content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%;
+      background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, .3); transition: transform .15s ease;
+    }
+    .switch:checked { background: var(--accent); }
+    .switch:checked::after { transform: translateX(16px); }
+    .card { border-radius: 14px; background: var(--panel); box-shadow: var(--shadow); }
+    table { width: 100%; border-collapse: separate; border-spacing: 0; font-variant-numeric: tabular-nums; }
+    th, td { padding: 10px 14px; text-align: right; white-space: nowrap; vertical-align: middle; }
+    td { border-top: 1px solid var(--line); }
+    th {
+      position: sticky; top: 0; z-index: 1; background: var(--panel); color: var(--muted); font-weight: 600;
+      font-size: 12px; letter-spacing: .04em; text-transform: uppercase; cursor: pointer; user-select: none;
+    }
+    th:first-child { border-top-left-radius: 14px; }
+    th:last-child { border-top-right-radius: 14px; }
+    th:hover { color: var(--text); }
+    th[aria-sort="ascending"]::after { content: " \25B4"; }
+    th[aria-sort="descending"]::after { content: " \25BE"; }
+    .left { text-align: left; }
+    tbody tr:nth-child(even) td { background: var(--zebra); }
+    tbody tr:hover td { background: var(--hover); }
+    tbody tr.has-gap td { background: var(--gap-bg); }
+    td.name a { color: inherit; text-decoration: none; font-family: var(--mono); font-size: 13px; }
+    td.name a:hover { color: var(--accent); text-decoration: underline; }
+    td.muted { color: var(--muted); font-size: 13px; }
+    .metric { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+    .pill {
+      display: inline-block; padding: 1px 10px; border-radius: 999px; font-size: 13px; font-weight: 600;
+      color: var(--ok); background: var(--ok-bg);
+    }
+    .pill.gap { color: var(--gap); background: var(--gap-bg); }
+    .pill.bad { color: var(--bad); background: #ffebe9; }
+    .mini { display: block; width: 64px; height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
+    .mini i { display: block; height: 100%; background: var(--ok); }
+    .mini.gap i, .mini.bad i { background: var(--gap); }
+    .empty { padding: 28px; text-align: center; color: var(--muted); }
+    @media (max-width: 900px) { .card { overflow-x: auto; } th { position: static; } }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="hero-inner">
+      <p class="eyebrow">Test coverage</p>
+      <h1 id="title">Test coverage</h1>
+      <p id="intro">What the tests run and what they miss, line by line.</p>
+      <p id="overall" class="overall"></p>
+    </div>
+  </header>
+  <main>
+    <nav id="reports" class="tiles"></nav>
+    <div class="controls">
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path>
+        </svg>
+        <input id="filter" type="search" placeholder="Filter files..." aria-label="Filter files">
+      </div>
+      <label><input id="gaps-only" class="switch" type="checkbox"> Only files with gaps</label>
+    </div>
+    <div class="card">
+      <table>
+        <thead><tr id="head"></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <div id="empty" class="empty" hidden>No files match.</div>
+    </div>
+    <noscript><p>This page needs JavaScript to list the reports.</p></noscript>
+  </main>
+  <script>
+    const SVG = 'http://www.w3.org/2000/svg';
+
+    function element(tag, className, text) {
+      const el = document.createElement(tag);
+      if (className) el.className = className;
+      if (text !== undefined) el.textContent = text;
+      return el;
+    }
+
+    function link(text, href, className) {
+      const el = element('a', className, text);
+      el.href = href;
+      return el;
+    }
+
+    function pct(total, missed) {
+      return total ? ((total - missed) / total) * 100 : 100;
+    }
+
+    function formatPct(value) {
+      return `${Number.isInteger(value) ? value : value.toFixed(1)}%`;
+    }
+
+    const tone = (value) => (value === 100 ? 'ok' : value < 80 ? 'bad' : 'gap');
+
+    function segments(path) {
+      return path.split(/[\\/]/).filter(Boolean);
+    }
+
+    function makeRow(report, file, url, statements, branches, functions) {
+      const totals = statements.total + branches.total;
+      return {
+        report: report.label, file, url: report.path + url,
+        statementsTotal: statements.total, statementsMissed: statements.missed,
+        statementsPct: pct(statements.total, statements.missed),
+        branchesTotal: branches.total, branchesMissed: branches.missed,
+        branchesPct: pct(branches.total, branches.missed),
+        functionsPct: functions ? pct(functions.total, functions.missed) : null,
+        totalPct: pct(totals, statements.missed + branches.missed),
+      };
+    }
+
+    // Each format turns its report's summary file into rows of the same shape, so another format is one more entry.
+    const formats = {
+      // coverage.py's status.json: {files: {key: {index: {url, file, nums: {n_statements, n_missing, ...}}}}}
+      'coverage.py'(report, data) {
+        return Object.values(data.files).map(({ index }) => {
+          const n = index.nums;
+          return makeRow(report, segments(index.file).join('/'), index.url,
+            { total: n.n_statements, missed: n.n_missing },
+            { total: n.n_branches, missed: n.n_missing_branches }, null);
+        });
+      },
+      // istanbul's coverage-summary.json: {total: {...}, "/abs/path/file.js": {statements: {total, covered}, ...}}.
+      // Its HTML pages sit under the last folder every file shares, so that folder's parent is cut from each path.
+      istanbul(report, data) {
+        const files = Object.keys(data).filter((key) => key !== 'total');
+        const common = files.map((file) => segments(file).slice(0, -1))
+          .reduce((shared, dir) => shared.filter((part, i) => dir[i] === part));
+        return files.map((file) => {
+          const metrics = data[file];
+          const metric = (name) => ({ total: metrics[name].total, missed: metrics[name].total - metrics[name].covered });
+          const path = segments(file).slice(Math.max(common.length - 1, 0)).join('/');
+          return makeRow(report, path, `${path}.html`, metric('statements'), metric('branches'), metric('functions'));
+        });
+      },
+    };
+
+    const rows = [];
+    let sortKey = 'totalPct';
+    let ascending = true;
+
+    function pctCell(value) {
+      const td = element('td');
+      if (value === null) return td;
+      const metric = element('div', 'metric');
+      const bar = element('span', `mini ${tone(value)}`);
+      const fill = element('i');
+      fill.style.width = `${value}%`;
+      bar.append(fill);
+      metric.append(element('span', `pill ${tone(value)}`, formatPct(value)), bar);
+      td.append(metric);
+      return td;
+    }
+
+    const countCell = (value) => element('td', 'muted', String(value));
+
+    const columns = [
+      { key: 'file', label: 'File', left: true, cell: (row) => { const td = element('td', 'name left'); td.append(link(row.file, row.url)); return td; } },
+      { key: 'report', label: 'Report', left: true, cell: (row) => element('td', 'muted left', row.report) },
+      { key: 'statementsPct', label: 'Statements', cell: (row) => pctCell(row.statementsPct) },
+      { key: 'statementsMissed', label: 'Missed', descFirst: true, cell: (row) => countCell(row.statementsMissed) },
+      { key: 'branchesPct', label: 'Branches', cell: (row) => pctCell(row.branchesPct) },
+      { key: 'branchesMissed', label: 'Missed', descFirst: true, cell: (row) => countCell(row.branchesMissed) },
+      { key: 'functionsPct', label: 'Functions', cell: (row) => pctCell(row.functionsPct) },
+      { key: 'totalPct', label: 'Total', cell: (row) => pctCell(row.totalPct) },
+    ];
+
+    function render() {
+      const text = document.getElementById('filter').value.trim().toLowerCase();
+      const gapsOnly = document.getElementById('gaps-only').checked;
+      const shown = rows.filter((row) => row.file.toLowerCase().includes(text) && (!gapsOnly || row.totalPct < 100));
+      shown.sort((a, b) => {
+        const [x, y] = [a[sortKey], b[sortKey]];
+        const order = typeof x === 'string' ? x.localeCompare(y) : (x ?? Infinity) - (y ?? Infinity);
+        return (ascending ? order : -order) || a.file.localeCompare(b.file);
+      });
+      const head = document.getElementById('head');
+      head.replaceChildren();
+      for (const column of columns) {
+        const th = element('th', column.left ? 'left' : '', column.label);
+        th.setAttribute('aria-sort', column.key === sortKey ? (ascending ? 'ascending' : 'descending') : 'none');
+        th.addEventListener('click', () => {
+          ascending = column.key === sortKey ? !ascending : !column.descFirst;
+          sortKey = column.key;
+          render();
+        });
+        head.append(th);
+      }
+      const body = document.getElementById('rows');
+      body.replaceChildren();
+      for (const row of shown) {
+        const tr = element('tr', row.totalPct < 100 ? 'has-gap' : '');
+        tr.append(...columns.map((column) => column.cell(row)));
+        body.append(tr);
+      }
+      document.getElementById('empty').hidden = shown.length > 0;
+    }
+
+    function ring(value) {
+      const svg = document.createElementNS(SVG, 'svg');
+      svg.setAttribute('viewBox', '0 0 64 64');
+      svg.setAttribute('class', 'ring');
+      const length = 2 * Math.PI * 27;
+      for (const className of ['track', `arc ${value < 100 ? 'gap' : ''}`]) {
+        const circle = document.createElementNS(SVG, 'circle');
+        circle.setAttribute('cx', '32');
+        circle.setAttribute('cy', '32');
+        circle.setAttribute('r', '27');
+        circle.setAttribute('class', className);
+        if (className !== 'track') {
+          circle.setAttribute('stroke-dasharray', length);
+          circle.setAttribute('stroke-dashoffset', length * (1 - value / 100));
+          circle.setAttribute('transform', 'rotate(-90 32 32)');
+        }
+        svg.append(circle);
+      }
+      const text = document.createElementNS(SVG, 'text');
+      text.setAttribute('x', '32');
+      text.setAttribute('y', '32');
+      text.textContent = formatPct(value);
+      svg.append(text);
+      return svg;
+    }
+
+    const sum = (list, key) => list.reduce((acc, row) => acc + row[key], 0);
+    const missedOf = (list) => sum(list, 'statementsMissed') + sum(list, 'branchesMissed');
+    const totalOf = (list) => sum(list, 'statementsTotal') + sum(list, 'branchesTotal');
+
+    function addTile(report, reportRows) {
+      const tile = link('', report.path, 'tile');
+      const missed = missedOf(reportRows);
+      const total = totalOf(reportRows);
+      tile.append(ring(pct(total, missed)));
+      const body = element('div');
+      body.append(element('strong', '', report.label));
+      body.append(element('span', '', `${reportRows.length} files, ${missed} of ${total} statements and branches missed`));
+      if (report.about) body.append(element('span', '', report.about));
+      tile.append(body);
+      document.getElementById('reports').append(tile);
+    }
+
+    async function fetchJson(path) {
+      const response = await fetch(path);
+      if (!response.ok) throw new Error(`${path}: ${response.statusText}`);
+      return response.json();
+    }
+
+    // functions.json: {file: {measured, called}}, for formats whose summary has no function counts. A function counts
+    // as covered when something called it, which is what istanbul's function metric means.
+    async function loadReport(report) {
+      const reportRows = formats[report.format](report, await fetchJson(report.path + report.summary))
+        .filter((row) => row.statementsTotal > 0);
+      if (report.functions) {
+        const counts = await fetchJson(report.path + report.functions);
+        for (const row of reportRows) {
+          const count = counts[row.file];
+          if (count) row.functionsPct = pct(count.measured, count.measured - count.called);
+        }
+      }
+      rows.push(...reportRows);
+      addTile(report, reportRows);
+    }
+
+    fetchJson('reports.json')
+      .then(async ({ title, source, reports }) => {
+        document.title = `${title} - test coverage`;
+        document.getElementById('title').textContent = title;
+        if (source) document.getElementById('intro').append(' ', link('Source', source));
+        for (const report of reports) await loadReport(report);
+        const total = totalOf(rows);
+        document.getElementById('overall').textContent =
+          `${formatPct(pct(total, missedOf(rows)))} of ${total.toLocaleString()} statements and branches covered across ${rows.length} files`;
+        render();
+      })
+      .catch((error) => {
+        document.getElementById('intro').textContent = `The reports could not be loaded: ${error.message}`;
+      });
+
+    document.getElementById('filter').addEventListener('input', render);
+    document.getElementById('gaps-only').addEventListener('change', render);
+  </script>
+</body>
+</html>

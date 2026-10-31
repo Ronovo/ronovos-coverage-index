@@ -1,0 +1,40 @@
+/* Loaded after coverage.py's own stylesheet through [html] extra_css. A line takes a colour only while its button
+   at the top is pressed, in GitHub's diff colours, and the "run" button reads "covered". */
+#source p { background: transparent; }
+#source p .t { border-left-color: transparent; }
+
+#source p.run.show_run .t, #source p.run.run2.show_run .t { background: #dafbe1; border-left-color: #1a7f37; }
+#source p.run.show_run .t:hover, #source p.run.run2.show_run .t:hover { background: #c3f0cf; }
+#source p.mis.show_mis .t, #source p.mis.mis2.show_mis .t { background: #ffebe9; border-left-color: #cf222e; }
+#source p.mis.show_mis .t:hover, #source p.mis.mis2.show_mis .t:hover { background: #ffd8d4; }
+#source p.par.show_par .t, #source p.par.par2.show_par .t { background: #fff8c5; border-left-color: #9a6700; }
+#source p.par.show_par .t:hover, #source p.par.par2.show_par .t:hover { background: #fcefa6; }
+#source p.exc.show_exc .t, #source p.exc.exc2.show_exc .t { background: #eaeef2; border-left-color: #8c959f; }
+#source p.exc.show_exc .t:hover, #source p.exc.exc2.show_exc .t:hover { background: #dde3ea; }
+
+header button.run { background: #eee; }
+header button.run.show_run { background: #dafbe1; border-color: #1a7f37; }
+header button.mis.show_mis { background: #ffebe9; border-color: #cf222e; }
+header button.par.show_par { background: #fff8c5; border-color: #9a6700; }
+header button.exc.show_exc { background: #eaeef2; border-color: #8c959f; }
+
+header button.button_toggle_run .text { display: none; }
+header button.button_toggle_run::after { content: " covered"; }
+header.sticky button.button_toggle_run::after { content: none; }
+
+@media (prefers-color-scheme: dark) {
+    #source p.run.show_run .t, #source p.run.run2.show_run .t { background: rgba(46, 160, 67, 0.3); border-left-color: #3fb950; }
+    #source p.run.show_run .t:hover, #source p.run.run2.show_run .t:hover { background: rgba(46, 160, 67, 0.45); }
+    #source p.mis.show_mis .t, #source p.mis.mis2.show_mis .t { background: rgba(248, 81, 73, 0.3); border-left-color: #f85149; }
+    #source p.mis.show_mis .t:hover, #source p.mis.mis2.show_mis .t:hover { background: rgba(248, 81, 73, 0.45); }
+    #source p.par.show_par .t, #source p.par.par2.show_par .t { background: rgba(187, 128, 9, 0.3); border-left-color: #d29922; }
+    #source p.par.show_par .t:hover, #source p.par.par2.show_par .t:hover { background: rgba(187, 128, 9, 0.45); }
+    #source p.exc.show_exc .t, #source p.exc.exc2.show_exc .t { background: rgba(140, 149, 159, 0.25); border-left-color: #8c959f; }
+    #source p.exc.show_exc .t:hover, #source p.exc.exc2.show_exc .t:hover { background: rgba(140, 149, 159, 0.4); }
+
+    header button.run { background: #333; }
+    header button.run.show_run { background: rgba(46, 160, 67, 0.3); border-color: #3fb950; }
+    header button.mis.show_mis { background: rgba(248, 81, 73, 0.3); border-color: #f85149; }
+    header button.par.show_par { background: rgba(187, 128, 9, 0.3); border-color: #d29922; }
+    header button.exc.show_exc { background: rgba(140, 149, 159, 0.25); border-color: #8c959f; }
+}
