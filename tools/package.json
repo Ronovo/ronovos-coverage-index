@@ -1,0 +1,10 @@
+{
+  "name": "ronovos-coverage-index-tools",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@vitest/istanbul-lib-coverage": "1.0.2",
+    "@vitest/istanbul-lib-report": "1.0.2",
+    "fast-xml-parser": "5.11.2"
+  }
+}

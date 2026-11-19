@@ -9,3 +9,12 @@
 .high .chart { border-color: #1a7f37; }
 .red.solid, .status-line.low, .low .cover-fill { background: #cf222e; }
 .low .chart { border-color: #cf222e; }
+/* The test list from istanbul-tests.js. */
+.line-count a.has-tests { text-decoration: underline dotted; cursor: pointer; }
+.tests-popover {
+  position: absolute; z-index: 10; max-width: min(640px, calc(100vw - 32px)); max-height: 50vh; overflow: auto;
+  padding: 8px 12px; border: 1px solid #d0d7de; border-radius: 6px; background: #fff;
+  box-shadow: 0 8px 24px rgba(140, 149, 159, .2); font: 12px/1.5 system-ui, sans-serif; color: #1f2328;
+}
+.tests-popover ul { margin: 6px 0 0; padding-left: 18px; }
+.tests-popover li { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: nowrap; }

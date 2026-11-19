@@ -175,7 +175,7 @@
     }
 
     // Each format turns its report's summary file into rows of the same shape, so another format is one more entry.
-    // `summary` says how that file is read: json, text or xml.
+    // `summary` says how that file is read: json or xml.
     const formats = {
       // coverage.py's status.json: {files: {key: {index: {url, file, nums: {n_statements, n_missing, ...}}}}}
       'coverage.py': {
@@ -207,20 +207,6 @@
             const path = root + relative[i].join('/');
             return makeRow(report, path, `${path}.html`, metric('statements'), metric('branches'), metric('functions'));
           });
-        },
-      },
-      // ReportGenerator's Html report keeps its summary in main.js as `var assemblies = [...]`: one object per class,
-      // not per file, with its page in rp, lines in cl/cal, branches in cb/tb and methods in cm/tm. The array has
-      // trailing commas, so it is read as the JavaScript it is rather than as JSON.
-      reportgenerator: {
-        summary: 'text',
-        rows(report, text) {
-          const match = text.match(/var assemblies = (\[[\s\S]*?\n\]);/);
-          if (!match) throw new Error(`${report.summary} has no assemblies list`);
-          const assemblies = new Function(`return ${match[1]}`)();
-          return assemblies.flatMap((assembly) => assembly.classes.map((cls) => makeRow(report, cls.name, cls.rp,
-            { total: cls.cal, missed: cls.cal - cls.cl }, { total: cls.tb, missed: cls.tb - cls.cb },
-            cls.tm ? { total: cls.tm, missed: cls.tm - cls.cm } : null)));
         },
       },
       // JaCoCo's jacocoTestReport.xml: <package name="a/b"><sourcefile name="X.java"><counter type="LINE" missed covered/>
@@ -354,8 +340,7 @@
       const response = await fetch(path);
       if (!response.ok) throw new Error(`${path}: ${response.statusText}`);
       if (kind === 'json') return response.json();
-      const text = await response.text();
-      return kind === 'xml' ? new DOMParser().parseFromString(text, 'application/xml') : text;
+      return new DOMParser().parseFromString(await response.text(), 'application/xml');
     }
 
     const fetchJson = (path) => fetchAs(path, 'json');
